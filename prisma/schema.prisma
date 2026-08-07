@@ -1,0 +1,155 @@
+// MeetingMind — Prisma schema. Vectors live in Qdrant, not Postgres;
+// Utterance.qdrantPointId is the join key (plain Float[] isn't indexable in
+// Postgres without pgvector, and it'd duplicate what Qdrant already stores).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetings  Meeting[]
+}
+
+model Meeting {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title            String?
+  date             DateTime?
+  durationSeconds  Int?
+  attendees        String[]
+
+  sourceFormat     String   // "zoom-json" | "teams-export" | "plain-text"
+  transcriptUrl    String   // S3 or local storage path to the raw uploaded file
+  rawText          String   @db.Text
+
+  status           String   @default("PROCESSING") // PROCESSING | READY | ANALYZING | ANALYZED | FAILED
+
+  utterances       Utterance[]
+  decisions        Decision[]
+  actionItems      ActionItem[]
+  risks            Risk[]
+  disagreements    Disagreement[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Utterance {
+  id             String   @id @default(cuid())
+  meetingId      String
+  meeting        Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  utteranceId    String   // stable "meeting_id:utterance_id" form used everywhere else
+  speaker        String
+  text           String   @db.Text
+  timestamp      String   // HH:MM:SS
+  utteranceIndex Int
+
+  qdrantPointId  String?  // pointer into the Qdrant collection; null until embedded
+
+  createdAt      DateTime @default(now())
+
+  @@unique([meetingId, utteranceIndex])
+  @@index([meetingId])
+}
+
+// Extraction tables. Every row carries sourceUtteranceId + exactQuote;
+// server/lib/citation-validator.ts refuses the write unless exactQuote is
+// verbatim in that utterance's text.
+
+model Decision {
+  id                String   @id @default(cuid())
+  meetingId         String
+  meeting           Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sourceUtteranceId String
+
+  decision          String   @db.Text
+  speaker           String
+  timestamp         String
+  exactQuote        String   @db.Text
+  confidence        Float
+  context           String?  @db.Text
+
+  createdAt         DateTime @default(now())
+
+  @@index([meetingId])
+}
+
+model ActionItem {
+  id                String   @id @default(cuid())
+  meetingId         String
+  meeting           Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sourceUtteranceId String
+
+  action            String   @db.Text
+  owner             String
+  deadline          String?
+  speaker           String
+  timestamp         String
+  exactQuote        String   @db.Text
+  confidence        Float
+  priority          String   // HIGH | MEDIUM | LOW | CRITICAL
+  status            String   @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([meetingId])
+  @@index([owner])
+}
+
+model Risk {
+  id                String   @id @default(cuid())
+  meetingId         String
+  meeting           Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sourceUtteranceId String
+
+  risk              String   @db.Text
+  riskType          String   // DOUBT | CONCERN | BLOCKER | DEPENDENCY
+  speaker           String
+  timestamp         String
+  exactQuote        String   @db.Text
+  confidence        Float
+  severity          String   // HIGH | MEDIUM | LOW
+
+  createdAt         DateTime @default(now())
+
+  @@index([meetingId])
+}
+
+model Disagreement {
+  id                  String   @id @default(cuid())
+  meetingId           String
+  meeting             Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sourceUtteranceId1  String
+  sourceUtteranceId2  String
+
+  topic               String   @db.Text
+  position1           String   @db.Text
+  speaker1            String
+  timestamp1          String
+  position2           String   @db.Text
+  speaker2            String
+  timestamp2          String
+  resolution          String?  @db.Text
+  confidence          Float
+
+  createdAt           DateTime @default(now())
+
+  @@index([meetingId])
+}
