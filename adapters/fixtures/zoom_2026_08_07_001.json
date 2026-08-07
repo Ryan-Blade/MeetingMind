@@ -1,0 +1,42 @@
+{
+  "title": "Payment Bug Triage",
+  "date": "2026-08-07T10:00:00Z",
+  "duration_seconds": 1800,
+  "transcript": [
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "00:00:05",
+      "text": "Thanks everyone for joining emergency triage. We are seeing a spike in failed checkout transactions on the Stripe gateway."
+    },
+    {
+      "speaker": "Alex Rivera",
+      "start_time": "00:00:18",
+      "text": "I analyzed the logs from 09:00 UTC. The API timeouts are caused by unindexed queries in the database during high concurrency."
+    },
+    {
+      "speaker": "Marcus Vance",
+      "start_time": "00:00:35",
+      "text": "I think we should immediately roll back the v2.4 deployment to mitigate customer impact."
+    },
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "00:00:50",
+      "text": "I strongly disagree with rolling back v2.4 because it contains critical security updates."
+    },
+    {
+      "speaker": "Alex Rivera",
+      "start_time": "00:01:05",
+      "text": "We decided to deploy the missing database index migration to production immediately instead of rolling back."
+    },
+    {
+      "speaker": "Marcus Vance",
+      "start_time": "00:01:25",
+      "text": "Marcus Vance will run the database index migration script by 11:30 AM today."
+    },
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "00:01:45",
+      "text": "There is a risk that running concurrent index creation on the active primary DB could cause brief locks."
+    }
+  ]
+}
