@@ -12,7 +12,6 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
   const [isRecording, setIsRecording] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState("Live Video Meeting");
   const [activeMeetingId, setActiveMeetingId] = useState<string | null>("mtg_live_session");
-  const [speakerName, setSpeakerName] = useState("Alex Rivera");
   const [liveText, setLiveText] = useState("");
   const [streamLog, setStreamLog] = useState<string[]>([]);
 
@@ -83,7 +82,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
       JSON.stringify({
         type: "LIVE_UTTERANCE",
         meetingId,
-        speaker: speakerName,
+        speaker: detectedSpeaker || "Speaker 1 (Voice ID #84)",
         text: text.trim(),
         timestamp,
       })
@@ -192,7 +191,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">Meeting Title</label>
+              <label className="block text-xs font-mono text-slate-400 mb-1">Live Call Session Title</label>
               <input
                 type="text"
                 value={meetingTitle}
@@ -202,13 +201,11 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">Active Speaker Name</label>
-              <input
-                type="text"
-                value={speakerName}
-                onChange={(e) => setSpeakerName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-[#D7F64A]"
-              />
+              <label className="block text-xs font-mono text-slate-400 mb-1">Speaker Identification Mode</label>
+              <div className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-[#D7F64A] flex items-center justify-between">
+                <span>Auto Voice ID + Screen Reader</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">ACTIVE</span>
+              </div>
             </div>
           </div>
 

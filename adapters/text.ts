@@ -14,8 +14,8 @@ export const textAdapter: ParserAdapter = {
     const attendeesSet = new Set<string>();
     let index = 1;
 
-    // Pattern 1: Speaker Name (00:01:23): Utterance text
-    const patternParenTime = /^([^(]+)\s*\((\d{2}:\d{2}:\d{2})\):\s*(.+)$/;
+    // Pattern 1: Speaker Name (00:00:05 or 00:05): Utterance text
+    const patternParenTime = /^([^(]+)\s*\(((?:\d{2}:)?\d{2}:\d{2})\):\s*(.+)$/;
     // Pattern 2: Speaker Name: Utterance text
     const patternSimple = /^([^:]+):\s*(.+)$/;
 

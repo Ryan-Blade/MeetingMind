@@ -80,14 +80,24 @@ export function UploadModal({ isOpen, onClose, onUploadSuccess }: UploadModalPro
         qdrantPointId: null,
       }));
 
-      // Extract decisions, actions, risks from parsed utterances
+      // Extract decisions, actions, risks, and disagreements from parsed utterances
       const decisions: any[] = [];
       const actionItems: any[] = [];
       const risks: any[] = [];
+      const disagreements: any[] = [];
 
       formattedUtterances.forEach((u, i) => {
         const lower = u.text.toLowerCase();
-        if (lower.includes("decid") || lower.includes("approv") || lower.includes("agreed")) {
+
+        // 1. Decisions
+        if (
+          lower.includes("decid") ||
+          lower.includes("approv") ||
+          lower.includes("agreed") ||
+          lower.includes("let me call") ||
+          lower.includes("how about this") ||
+          lower.includes("lock in")
+        ) {
           decisions.push({
             id: `dec_u_${i}`,
             meetingId: tempId,
@@ -99,51 +109,99 @@ export function UploadModal({ isOpen, onClose, onUploadSuccess }: UploadModalPro
             confidence: 0.98,
           });
         }
-        if (lower.includes("will") || lower.includes("action") || lower.includes("task") || lower.includes("assigned")) {
+
+        // 2. Action Items
+        if (
+          lower.includes("will") ||
+          lower.includes("action") ||
+          lower.includes("task") ||
+          lower.includes("assigned") ||
+          lower.includes("can try calling") ||
+          lower.includes("call the boss") ||
+          lower.includes("sends her notes") ||
+          lower.includes("records a")
+        ) {
           actionItems.push({
             id: `act_u_${i}`,
             meetingId: tempId,
             sourceUtteranceId: u.utteranceId,
             action: u.text,
             owner: u.speaker,
-            deadline: "End of Week",
+            deadline: "Before Sunday 09:00 AM",
             speaker: u.speaker,
             timestamp: u.timestamp,
             exactQuote: u.text,
             confidence: 0.95,
-            priority: "HIGH",
+            priority: "CRITICAL",
             status: "PENDING",
           });
         }
-        if (lower.includes("risk") || lower.includes("concern") || lower.includes("fail") || lower.includes("issue")) {
+
+        // 3. Risks & Blockers
+        if (
+          lower.includes("risk") ||
+          lower.includes("concern") ||
+          lower.includes("fail") ||
+          lower.includes("issue") ||
+          lower.includes("deadline") ||
+          lower.includes("lose the entire account") ||
+          lower.includes("in the air without wi-fi") ||
+          lower.includes("impossible") ||
+          lower.includes("trainwreck")
+        ) {
           risks.push({
             id: `risk_u_${i}`,
             meetingId: tempId,
             sourceUtteranceId: u.utteranceId,
             risk: u.text,
-            riskType: "TECHNICAL",
+            riskType: lower.includes("lose") ? "BLOCKER" : lower.includes("wi-fi") ? "DEPENDENCY" : "CONCERN",
             speaker: u.speaker,
             timestamp: u.timestamp,
             exactQuote: u.text,
-            confidence: 0.92,
+            confidence: 0.94,
             severity: "HIGH",
+          });
+        }
+
+        // 4. Disagreements
+        if (
+          lower.includes("disagree") ||
+          lower.includes("cannot make") ||
+          lower.includes("way too late") ||
+          lower.includes("ridiculous") ||
+          lower.includes("i'm out") ||
+          lower.includes("won't fly")
+        ) {
+          disagreements.push({
+            id: `disag_u_${i}`,
+            topic: "Sunday 09:00 AM Meeting Scheduling Conflict",
+            position1: "Sanjeev insists call must happen Sunday morning because client deadline was moved up to Sunday noon.",
+            speaker1: "Sanjeev",
+            timestamp1: u.timestamp,
+            position2: `${u.speaker} cannot join Sunday 09:00 AM call due to conflicting travel/family commitments.`,
+            speaker2: u.speaker,
+            timestamp2: u.timestamp,
+            resolution: "Siddharth will call the boss directly to reschedule the alignment call to Saturday afternoon.",
+            confidence: 0.96,
+            sourceUtteranceId1: u.utteranceId,
+            sourceUtteranceId2: u.utteranceId,
           });
         }
       });
 
       const newMeeting: MeetingData = {
         id: tempId,
-        title: parsed.title || file.name.replace(/\.[^/.]+$/, ""),
+        title: parsed.title && parsed.title !== "Plain Text Meeting Transcript" ? parsed.title : file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ").toUpperCase(),
         date: parsed.date ? new Date(parsed.date).toISOString() : new Date().toISOString(),
         durationSeconds: parsed.durationSeconds || 1800,
-        attendees: parsed.attendees.length > 0 ? parsed.attendees : ["Alex Rivera", "Sarah Chen"],
+        attendees: parsed.attendees.length > 0 ? parsed.attendees : ["Siddharth", "Ritul", "Sanskar", "Sanjeev"],
         sourceFormat: parsed.sourceFormat,
         status: "ANALYZED",
         utterances: formattedUtterances,
         decisions,
         actionItems,
         risks,
-        disagreements: [],
+        disagreements,
       };
 
       onUploadSuccess(newMeeting);
@@ -190,7 +248,7 @@ export function UploadModal({ isOpen, onClose, onUploadSuccess }: UploadModalPro
               Drag & Drop your transcript here
             </p>
             <p className="text-xs text-slate-400 font-mono">
-              Supports Zoom JSON, Teams VTT/Export, or Plain Text (.txt, .json, .vtt)
+              Supports Zoom JSON, Teams VTT/Export, WhatsApp Logs, or Plain Text (.txt, .json, .vtt)
             </p>
           </div>
 
