@@ -1,0 +1,3 @@
+Sarah Chen (Zoom Video Tile OCR) (12:36:49): We decided to approve the zero-trust security policy immediately.
+Alex Rivera (Voice Fingerprint #19) (12:36:50): Alex Rivera will configure the mTLS certificate proxies by 4 PM today.
+Marcus Vance (Meet Video Tile OCR) (12:36:52): There is a concern that old mobile apps might fail during certificate rotation.
