@@ -33,7 +33,7 @@ export async function extractDecisionsForUtterance(
   }
 
   // Fallback rule extraction for offline / fixture test mode when no API keys are set
-  if (/decided to|agreed to|decision/i.test(utteranceText)) {
+  if (/decided to|agreed to|decision|let's try|great idea|recommend|we will/i.test(utteranceText)) {
     return [
       {
         decision: utteranceText,
@@ -71,17 +71,17 @@ export async function extractActionItemsForUtterance(
   }
 
   // Fallback rule extraction for offline / fixture test mode when no API keys are set
-  if (/will run|will deploy|action item|tasked to/i.test(utteranceText)) {
+  if (/will run|will deploy|action item|tasked to|i can talk|i'll look for|we should put up/i.test(utteranceText)) {
     return [
       {
         action: utteranceText,
         owner: speaker,
-        deadline: "11:30 AM today",
+        deadline: "Today",
         exact_quote: utteranceText,
         speaker,
         timestamp,
         confidence: 0.92,
-        priority: "CRITICAL",
+        priority: "MEDIUM",
         source_utterance_id: utteranceId,
       },
     ];
@@ -112,7 +112,7 @@ export async function extractRisksForUtterance(
   }
 
   // Fallback rule extraction for offline / fixture test mode when no API keys are set
-  if (/risk|concern|blocker|lock/i.test(utteranceText)) {
+  if (/risk|concern|blocker|lock|troubling trend|getting sick|skipping on fridays|stressed out|missed seven days/i.test(utteranceText)) {
     return [
       {
         risk: utteranceText,

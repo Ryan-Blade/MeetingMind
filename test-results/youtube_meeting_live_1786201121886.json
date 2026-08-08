@@ -1,0 +1,59 @@
+{
+  "title": "YouTube: Weekly Meeting Example (Student Success)",
+  "date": "2026-08-08T14:58:48.292Z",
+  "duration_seconds": 135,
+  "source_format": "live_stream_capture",
+  "attendees": [
+    "Facilitator",
+    "Mentor",
+    "School Nurse",
+    "Guidance Counselor"
+  ],
+  "transcript": [
+    {
+      "speaker": "Facilitator",
+      "start_time": "00:00:00",
+      "text": "Hello everyone. Thank you guys for coming to our weekly student success meeting and let's just get started. So I have our list of chronically absent students here and I've been noticing a troubling trend. A lot of students are skipping on Fridays. Does anyone have any idea what's going on?"
+    },
+    {
+      "speaker": "Mentor",
+      "start_time": "00:00:17",
+      "text": "I've heard some of my mentees talking about how it's really hard to get out of bed on Fridays. It might be good if we did something like a pancake breakfast to encourage them to come."
+    },
+    {
+      "speaker": "Facilitator",
+      "start_time": "00:00:26",
+      "text": "I think that's a great idea. Let's try that next week."
+    },
+    {
+      "speaker": "School Nurse",
+      "start_time": "00:00:30",
+      "text": "It might also be because a lot of students have been getting sick now that it's getting colder outside. I've had a number of students come by my office with symptoms like sniffling and coughing. We should put up posters with tips for not getting sick since it's almost flu season, like you know wash your hands after the bathroom, stuff like that."
+    },
+    {
+      "speaker": "Facilitator",
+      "start_time": "00:00:44",
+      "text": "I think that's a good idea and it'll be a good reminder for the teachers as well. So one of the things I wanted to talk about — there's a student I've noticed here, John Smith. He's missed seven days already and it's only November. Does anyone have an idea what's going on with him?"
+    },
+    {
+      "speaker": "Mentor",
+      "start_time": "00:01:00",
+      "text": "I might be able to fill in the gaps there. I talked to John today and he's really stressed out. He's been dealing with helping his parents take care of his younger siblings during the day. It might actually be a good idea if he spoke to the guidance counselor a little bit."
+    },
+    {
+      "speaker": "Guidance Counselor",
+      "start_time": "00:01:12",
+      "text": "I can talk to John today if you want to send him to my office after you meet with him. It's a lot to deal with for a middle schooler."
+    },
+    {
+      "speaker": "Facilitator",
+      "start_time": "00:01:20",
+      "text": "Great, thanks. And I can help out with the family's child care needs. I'll look for some free or low cost resources in the community to share with John and he can share them with his family."
+    },
+    {
+      "speaker": "Facilitator",
+      "start_time": "00:01:31",
+      "text": "Great, well some really good ideas here today. Thanks for coming and if no one has anything else I think we can wrap up."
+    }
+  ]
+}
