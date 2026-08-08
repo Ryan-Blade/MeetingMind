@@ -6,6 +6,8 @@ import { meetingsRouter } from "./routes/meetings.js";
 import { analyzeRouter } from "./routes/analyze.js";
 import { initLiveSocketServer } from "./services/live-socket.js";
 
+import path from "node:path";
+
 dotenv.config();
 
 const app = express();
@@ -13,6 +15,7 @@ const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
 app.use("/api/meetings", meetingsRouter);
 app.use("/api/meetings", analyzeRouter);

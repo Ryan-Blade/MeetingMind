@@ -1,5 +1,7 @@
 import { Server as HttpServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
+import fs from "node:fs";
+import path from "node:path";
 import { prisma } from "../lib/prisma.js";
 import { indexUtterancesInQdrant } from "../lib/qdrant.js";
 import { validateExtraction } from "../../lib/citation-validator.js";
@@ -16,6 +18,12 @@ import {
 
 let wss: WebSocketServer | null = null;
 const activeUtterancesMap = new Map<string, Array<{ utteranceId: string; text: string; speaker: string; timestamp: string }>>();
+const sessionTitleMap = new Map<string, string>();
+
+const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 export function initLiveSocketServer(server: HttpServer) {
   wss = new WebSocketServer({ server, path: "/ws/live-meeting" });
@@ -49,6 +57,7 @@ export function initLiveSocketServer(server: HttpServer) {
             console.warn("[Live Socket] Database offline, running live session with in-memory persistence:", meetingId);
           }
           activeUtterancesMap.set(meetingId, []);
+          sessionTitleMap.set(meetingId, meetingTitle);
 
           ws.send(JSON.stringify({ type: "SESSION_STARTED", meetingId, title: meetingTitle }));
         }
@@ -65,6 +74,9 @@ export function initLiveSocketServer(server: HttpServer) {
           activeList.push(newUtt);
           activeUtterancesMap.set(meetingId, activeList);
 
+          // Auto-save live session to .JSON and .TXT files on disk
+          const filePaths = saveLiveSessionToFileSystem(meetingId, activeList);
+
           // 1. INSTANT BROADCAST (<5ms UI Latency)
           const liveUtterancePayload = {
             id: utteranceId,
@@ -75,20 +87,71 @@ export function initLiveSocketServer(server: HttpServer) {
             timestamp: newUtt.timestamp,
             utteranceIndex: index,
             qdrantPointId: null,
+            jsonFileUrl: filePaths.jsonPath,
+            txtFileUrl: filePaths.txtPath,
           };
 
-          broadcast({ type: "UTTERANCE_ADDED", meetingId, utterance: liveUtterancePayload });
+          broadcast({ type: "UTTERANCE_ADDED", meetingId, utterance: liveUtterancePayload, filePaths });
 
           // 2. Async Non-blocking Persistence & AI Extractions in Background
           processBackgroundUtterance(meetingId, utteranceId, index, newUtt).catch((err) =>
             console.error("[Background Processing Error]", err)
           );
         }
+
+        if (data.type === "END_LIVE_SESSION") {
+          const { meetingId } = data;
+          const activeList = activeUtterancesMap.get(meetingId) || [];
+          const filePaths = saveLiveSessionToFileSystem(meetingId, activeList);
+          ws.send(JSON.stringify({ type: "SESSION_ENDED", meetingId, filePaths }));
+        }
       } catch (err) {
         console.error("[Live Socket Error]", err);
       }
     });
   });
+}
+
+/**
+ * Automatically creates and writes .json and .txt files of the live reading stream
+ */
+function saveLiveSessionToFileSystem(
+  meetingId: string,
+  utterances: Array<{ utteranceId: string; text: string; speaker: string; timestamp: string }>
+): { jsonPath: string; txtPath: string; jsonFilename: string; txtFilename: string } {
+  const title = sessionTitleMap.get(meetingId) || "Live Meeting Transcript";
+  const sanitizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const jsonFilename = `${sanitizedTitle}_${meetingId}.json`;
+  const txtFilename = `${sanitizedTitle}_${meetingId}.txt`;
+
+  const jsonAbsPath = path.join(UPLOADS_DIR, jsonFilename);
+  const txtAbsPath = path.join(UPLOADS_DIR, txtFilename);
+
+  // 1. Generate JSON Transcript file
+  const jsonPayload = {
+    title,
+    date: new Date().toISOString(),
+    duration_seconds: utterances.length * 15,
+    source_format: "live_stream_capture",
+    attendees: Array.from(new Set(utterances.map((u) => u.speaker))),
+    transcript: utterances.map((u) => ({
+      speaker: u.speaker,
+      start_time: u.timestamp,
+      text: u.text,
+    })),
+  };
+  fs.writeFileSync(jsonAbsPath, JSON.stringify(jsonPayload, null, 2), "utf-8");
+
+  // 2. Generate TXT Transcript file
+  const txtLines = utterances.map((u) => `${u.speaker} (${u.timestamp}): ${u.text}`).join("\n");
+  fs.writeFileSync(txtAbsPath, txtLines, "utf-8");
+
+  return {
+    jsonPath: `uploads/${jsonFilename}`,
+    txtPath: `uploads/${txtFilename}`,
+    jsonFilename,
+    txtFilename,
+  };
 }
 
 async function processBackgroundUtterance(

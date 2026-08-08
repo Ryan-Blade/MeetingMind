@@ -200,20 +200,42 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
             </button>
           </div>
 
-          {/* AUTO DEMO TRIGGER */}
-          <div className="pt-2 flex items-center justify-between bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 font-mono text-xs">
+          {/* AUTO DEMO & EXPORT FILES */}
+          <div className="pt-2 flex flex-wrap items-center justify-between bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 font-mono text-xs gap-2">
             <div className="flex items-center space-x-2 text-slate-300">
               <Users className="w-4 h-4 text-blue-400" />
               <span>Diarization Status: <strong className="text-[#D7F64A]">{detectedSpeaker}</strong></span>
             </div>
 
-            <button
-              onClick={runAutoStreamDemo}
-              className="px-4 py-2 bg-[#D7F64A] hover:bg-[#c5e43a] text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(215,246,74,0.3)]"
-            >
-              <Sparkles className="w-4 h-4 text-slate-950" />
-              Auto-Detect Live Call Stream
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={runAutoStreamDemo}
+                className="px-3 py-1.5 bg-[#D7F64A] hover:bg-[#c5e43a] text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(215,246,74,0.3)]"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                Auto-Detect Call Stream
+              </button>
+
+              <a
+                href="http://localhost:3001/uploads/live_meeting_transcript_live_session.json"
+                target="_blank"
+                rel="noreferrer"
+                download
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-mono border border-slate-700 flex items-center gap-1"
+              >
+                📥 Export .JSON
+              </a>
+
+              <a
+                href="http://localhost:3001/uploads/live_meeting_transcript_live_session.txt"
+                target="_blank"
+                rel="noreferrer"
+                download
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-mono border border-slate-700 flex items-center gap-1"
+              >
+                📥 Export .TXT
+              </a>
+            </div>
           </div>
 
           {/* REAL-TIME LIVE LOG STREAM */}
