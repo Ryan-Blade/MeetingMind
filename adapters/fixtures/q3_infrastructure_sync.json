@@ -1,0 +1,37 @@
+{
+  "title": "Q3 Infrastructure & Security Sync",
+  "date": "2026-08-08T11:00:00Z",
+  "duration_seconds": 2400,
+  "transcript": [
+    {
+      "speaker": "David Kim",
+      "start_time": "00:00:10",
+      "text": "Welcome team to the Q3 Infrastructure Architecture review. Today we need to align on our zero-trust API gateway transition."
+    },
+    {
+      "speaker": "Elena Rostova",
+      "start_time": "00:00:28",
+      "text": "I analyzed our traffic logs. We decided to approve the zero-trust architecture rollout for production API gateways immediately."
+    },
+    {
+      "speaker": "Elena Rostova",
+      "start_time": "00:00:50",
+      "text": "Elena Rostova will complete the mTLS certificate proxy deployment by 04:00 PM today."
+    },
+    {
+      "speaker": "David Kim",
+      "start_time": "00:01:15",
+      "text": "I think we should immediately deprecate all IPv4 legacy endpoints to cut infrastructure costs."
+    },
+    {
+      "speaker": "Elena Rostova",
+      "start_time": "00:01:32",
+      "text": "I strongly disagree with deprecating IPv4 immediately because over 15 percent of enterprise mobile clients still rely on IPv4 routes."
+    },
+    {
+      "speaker": "David Kim",
+      "start_time": "00:01:55",
+      "text": "There is a risk that legacy mobile SDK versions could experience latency spikes during the mTLS certificate rotation."
+    }
+  ]
+}

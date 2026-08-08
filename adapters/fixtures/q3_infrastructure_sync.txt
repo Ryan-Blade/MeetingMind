@@ -1,0 +1,6 @@
+David Kim (00:00:10): Welcome team to the Q3 Infrastructure Architecture review. Today we need to align on our zero-trust API gateway transition.
+Elena Rostova (00:00:28): I analyzed our traffic logs. We decided to approve the zero-trust architecture rollout for production API gateways immediately.
+Elena Rostova (00:00:50): Elena Rostova will complete the mTLS certificate proxy deployment by 04:00 PM today.
+David Kim (00:01:15): I think we should immediately deprecate all IPv4 legacy endpoints to cut infrastructure costs.
+Elena Rostova (00:01:32): I strongly disagree with deprecating IPv4 immediately because over 15 percent of enterprise mobile clients still rely on IPv4 routes.
+David Kim (00:01:55): There is a risk that legacy mobile SDK versions could experience latency spikes during the mTLS certificate rotation.
