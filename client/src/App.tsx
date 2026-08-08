@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "./components/Header.js";
 import { UploadModal } from "./components/UploadModal.js";
 import { LiveStreamModal } from "./components/LiveStreamModal.js";
+import { FloatingHudOverlay } from "./components/FloatingHudOverlay.js";
 import { TranscriptTimeline } from "./components/TranscriptTimeline.js";
 import { IntelligenceCards } from "./components/IntelligenceCards.js";
 import { FilterBar } from "./components/FilterBar.js";
@@ -13,6 +14,7 @@ export default function App() {
   const [meeting, setMeeting] = useState<MeetingData>(PRD_FIXTURE_MEETING);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isLiveStreamOpen, setIsLiveStreamOpen] = useState(false);
+  const [isFloatingHudOpen, setIsFloatingHudOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedUtteranceId, setSelectedUtteranceId] = useState<string | null>(null);
   const [highlightQuote, setHighlightQuote] = useState<string | null>(null);
@@ -67,6 +69,7 @@ export default function App() {
       <Header
         onOpenUpload={() => setIsUploadOpen(true)}
         onOpenLiveStream={() => setIsLiveStreamOpen(true)}
+        onOpenFloatingHud={() => setIsFloatingHudOpen(true)}
         onAnalyze={handleRunAnalysis}
         isAnalyzing={isAnalyzing}
       />
@@ -170,6 +173,12 @@ export default function App() {
         onLiveMeetingCreated={(newMeeting) => {
           setMeeting(newMeeting);
         }}
+      />
+
+      <FloatingHudOverlay
+        isOpen={isFloatingHudOpen}
+        onClose={() => setIsFloatingHudOpen(false)}
+        onExpandToFullRoom={() => setIsFloatingHudOpen(false)}
       />
     </div>
   );

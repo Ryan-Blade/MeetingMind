@@ -1,13 +1,14 @@
-import { Upload, Sparkles, ShieldCheck } from "lucide-react";
+import { Upload, Sparkles, ShieldCheck, Radio } from "lucide-react";
 
 interface HeaderProps {
   onOpenUpload: () => void;
   onOpenLiveStream: () => void;
+  onOpenFloatingHud: () => void;
   onAnalyze: () => void;
   isAnalyzing: boolean;
 }
 
-export function Header({ onOpenUpload, onOpenLiveStream, onAnalyze, isAnalyzing }: HeaderProps) {
+export function Header({ onOpenUpload, onOpenLiveStream, onOpenFloatingHud, onAnalyze, isAnalyzing }: HeaderProps) {
   return (
     <header className="border-b border-slate-800 bg-[#0D1627]/90 backdrop-blur sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -31,11 +32,19 @@ export function Header({ onOpenUpload, onOpenLiveStream, onAnalyze, isAnalyzing 
 
         <div className="flex items-center space-x-3">
           <button
+            onClick={onOpenFloatingHud}
+            className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#D7F64A]/10 text-[#D7F64A] border border-[#D7F64A]/30 hover:bg-[#D7F64A]/20 flex items-center gap-2 transition cursor-pointer font-mono"
+          >
+            <Radio className="w-3.5 h-3.5 text-[#D7F64A] animate-pulse" />
+            Floating HUD
+          </button>
+
+          <button
             onClick={onOpenLiveStream}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 flex items-center gap-2 transition cursor-pointer"
+            className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 flex items-center gap-2 transition cursor-pointer"
           >
             <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-            Live Capture
+            Live Stream
           </button>
 
           <button
