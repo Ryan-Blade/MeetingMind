@@ -28,21 +28,29 @@ export function initLiveSocketServer(server: HttpServer) {
         const data = JSON.parse(rawMessage.toString());
 
         if (data.type === "START_LIVE_SESSION") {
-          const user = await prisma.user.findFirst();
-          const meeting = await prisma.meeting.create({
-            data: {
-              userId: user ? user.id : "demo_user",
-              title: data.title || "Live Meeting Session",
-              date: new Date(),
-              sourceFormat: "live-stream",
-              transcriptUrl: "live://stream",
-              rawText: "",
-              status: "PROCESSING",
-            },
-          });
-          activeUtterancesMap.set(meeting.id, []);
+          let meetingId = `live_${Date.now()}`;
+          let meetingTitle = data.title || "Live Meeting Session";
+          try {
+            const user = await prisma.user.findFirst();
+            const meeting = await prisma.meeting.create({
+              data: {
+                userId: user ? user.id : "demo_user",
+                title: meetingTitle,
+                date: new Date(),
+                sourceFormat: "live-stream",
+                transcriptUrl: "live://stream",
+                rawText: "",
+                status: "PROCESSING",
+              },
+            });
+            meetingId = meeting.id;
+            meetingTitle = meeting.title;
+          } catch (err) {
+            console.warn("[Live Socket] Database offline, running live session with in-memory persistence:", meetingId);
+          }
+          activeUtterancesMap.set(meetingId, []);
 
-          ws.send(JSON.stringify({ type: "SESSION_STARTED", meetingId: meeting.id, title: meeting.title }));
+          ws.send(JSON.stringify({ type: "SESSION_STARTED", meetingId, title: meetingTitle }));
         }
 
         if (data.type === "LIVE_UTTERANCE") {
@@ -57,19 +65,33 @@ export function initLiveSocketServer(server: HttpServer) {
           activeList.push(newUtt);
           activeUtterancesMap.set(meetingId, activeList);
 
-          // 1. Store Utterance in Postgres & Qdrant
-          const pointMap = await indexUtterancesInQdrant(meetingId, [{ ...newUtt, utteranceIndex: index }]);
-          const savedUtterance = await prisma.utterance.create({
-            data: {
-              meetingId,
-              utteranceId,
-              speaker: newUtt.speaker,
-              text: newUtt.text,
-              timestamp: newUtt.timestamp,
-              utteranceIndex: index,
-              qdrantPointId: pointMap.get(utteranceId) || null,
-            },
-          });
+          // 1. Store Utterance in Postgres & Qdrant (with fallback)
+          let savedUtterance: any = {
+            id: utteranceId,
+            meetingId,
+            utteranceId,
+            speaker: newUtt.speaker,
+            text: newUtt.text,
+            timestamp: newUtt.timestamp,
+            utteranceIndex: index,
+            qdrantPointId: null,
+          };
+          try {
+            const pointMap = await indexUtterancesInQdrant(meetingId, [{ ...newUtt, utteranceIndex: index }]);
+            savedUtterance = await prisma.utterance.create({
+              data: {
+                meetingId,
+                utteranceId,
+                speaker: newUtt.speaker,
+                text: newUtt.text,
+                timestamp: newUtt.timestamp,
+                utteranceIndex: index,
+                qdrantPointId: pointMap.get(utteranceId) || null,
+              },
+            });
+          } catch (err) {
+            // Memory mode
+          }
 
           // Broadcast Utterance to UI
           broadcast({ type: "UTTERANCE_ADDED", meetingId, utterance: savedUtterance });
@@ -85,18 +107,31 @@ export function initLiveSocketServer(server: HttpServer) {
               requiredFields: { decision: dec.decision },
             });
             if (val.valid) {
-              const saved = await prisma.decision.create({
-                data: {
-                  meetingId,
-                  sourceUtteranceId: dec.source_utterance_id,
-                  decision: dec.decision,
-                  speaker: dec.speaker,
-                  timestamp: dec.timestamp,
-                  exactQuote: dec.exact_quote,
-                  confidence: dec.confidence,
-                  context: dec.context || null,
-                },
-              });
+              let saved: any = {
+                id: `dec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                meetingId,
+                sourceUtteranceId: dec.source_utterance_id,
+                decision: dec.decision,
+                speaker: dec.speaker,
+                timestamp: dec.timestamp,
+                exactQuote: dec.exact_quote,
+                confidence: dec.confidence,
+                context: dec.context || null,
+              };
+              try {
+                saved = await prisma.decision.create({
+                  data: {
+                    meetingId,
+                    sourceUtteranceId: dec.source_utterance_id,
+                    decision: dec.decision,
+                    speaker: dec.speaker,
+                    timestamp: dec.timestamp,
+                    exactQuote: dec.exact_quote,
+                    confidence: dec.confidence,
+                    context: dec.context || null,
+                  },
+                });
+              } catch (e) {}
               broadcast({ type: "EXTRACTION_ADDED", meetingId, cardType: "DECISION", card: saved });
             }
           }
@@ -111,21 +146,37 @@ export function initLiveSocketServer(server: HttpServer) {
               requiredFields: { action: act.action, owner: act.owner },
             });
             if (val.valid) {
-              const saved = await prisma.actionItem.create({
-                data: {
-                  meetingId,
-                  sourceUtteranceId: act.source_utterance_id,
-                  action: act.action,
-                  owner: act.owner,
-                  deadline: act.deadline || null,
-                  speaker: act.speaker,
-                  timestamp: act.timestamp,
-                  exactQuote: act.exact_quote,
-                  confidence: act.confidence,
-                  priority: act.priority,
-                  status: "PENDING",
-                },
-              });
+              let saved: any = {
+                id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                meetingId,
+                sourceUtteranceId: act.source_utterance_id,
+                action: act.action,
+                owner: act.owner,
+                deadline: act.deadline || null,
+                speaker: act.speaker,
+                timestamp: act.timestamp,
+                exactQuote: act.exact_quote,
+                confidence: act.confidence,
+                priority: act.priority,
+                status: "PENDING",
+              };
+              try {
+                saved = await prisma.actionItem.create({
+                  data: {
+                    meetingId,
+                    sourceUtteranceId: act.source_utterance_id,
+                    action: act.action,
+                    owner: act.owner,
+                    deadline: act.deadline || null,
+                    speaker: act.speaker,
+                    timestamp: act.timestamp,
+                    exactQuote: act.exact_quote,
+                    confidence: act.confidence,
+                    priority: act.priority,
+                    status: "PENDING",
+                  },
+                });
+              } catch (e) {}
               broadcast({ type: "EXTRACTION_ADDED", meetingId, cardType: "ACTION_ITEM", card: saved });
             }
           }
@@ -140,19 +191,33 @@ export function initLiveSocketServer(server: HttpServer) {
               requiredFields: { risk: r.risk, riskType: r.risk_type },
             });
             if (val.valid) {
-              const saved = await prisma.risk.create({
-                data: {
-                  meetingId,
-                  sourceUtteranceId: r.source_utterance_id,
-                  risk: r.risk,
-                  riskType: r.risk_type,
-                  speaker: r.speaker,
-                  timestamp: r.timestamp,
-                  exactQuote: r.exact_quote,
-                  confidence: r.confidence,
-                  severity: r.severity,
-                },
-              });
+              let saved: any = {
+                id: `risk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                meetingId,
+                sourceUtteranceId: r.source_utterance_id,
+                risk: r.risk,
+                riskType: r.risk_type,
+                speaker: r.speaker,
+                timestamp: r.timestamp,
+                exactQuote: r.exact_quote,
+                confidence: r.confidence,
+                severity: r.severity,
+              };
+              try {
+                saved = await prisma.risk.create({
+                  data: {
+                    meetingId,
+                    sourceUtteranceId: r.source_utterance_id,
+                    risk: r.risk,
+                    riskType: r.risk_type,
+                    speaker: r.speaker,
+                    timestamp: r.timestamp,
+                    exactQuote: r.exact_quote,
+                    confidence: r.confidence,
+                    severity: r.severity,
+                  },
+                });
+              } catch (e) {}
               broadcast({ type: "EXTRACTION_ADDED", meetingId, cardType: "RISK", card: saved });
             }
           }

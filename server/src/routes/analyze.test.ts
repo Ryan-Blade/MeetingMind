@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+
+process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://mock:mock@localhost:5432/mock";
+
 import request from "supertest";
 import app from "../index.js";
 import { prisma } from "../lib/prisma.js";

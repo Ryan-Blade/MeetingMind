@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "./components/Header.js";
 import { UploadModal } from "./components/UploadModal.js";
 import { LiveStreamModal } from "./components/LiveStreamModal.js";
@@ -8,7 +8,6 @@ import { IntelligenceCards } from "./components/IntelligenceCards.js";
 import { FilterBar } from "./components/FilterBar.js";
 import { PRD_FIXTURE_MEETING } from "./mockData.js";
 import { MeetingData } from "./types.js";
-
 
 export default function App() {
   const [meeting, setMeeting] = useState<MeetingData>(PRD_FIXTURE_MEETING);
@@ -24,6 +23,37 @@ export default function App() {
   const [selectedOwner, setSelectedOwner] = useState("ALL");
   const [selectedPriority, setSelectedPriority] = useState("ALL");
   const [sortBy, setSortBy] = useState("TIMESTAMP");
+
+  // Global WebSocket Listener for Real-Time Live Sync
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    try {
+      ws = new WebSocket("ws://localhost:3001/ws/live-meeting");
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "UTTERANCE_ADDED") {
+          setMeeting((prev) => ({
+            ...prev,
+            utterances: [...prev.utterances, data.utterance],
+          }));
+        }
+        if (data.type === "EXTRACTION_ADDED") {
+          setMeeting((prev) => {
+            if (data.cardType === "DECISION") return { ...prev, decisions: [data.card, ...prev.decisions] };
+            if (data.cardType === "ACTION_ITEM") return { ...prev, actionItems: [data.card, ...prev.actionItems] };
+            if (data.cardType === "RISK") return { ...prev, risks: [data.card, ...prev.risks] };
+            if (data.cardType === "DISAGREEMENT") return { ...prev, disagreements: [data.card, ...prev.disagreements] };
+            return prev;
+          });
+        }
+      };
+    } catch (err) {
+      console.warn("WebSocket connection error:", err);
+    }
+    return () => {
+      ws?.close();
+    };
+  }, []);
 
   const handleSelectUtterance = (utteranceId: string, quote?: string) => {
     setSelectedUtteranceId(utteranceId);

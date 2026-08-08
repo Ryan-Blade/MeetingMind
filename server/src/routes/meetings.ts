@@ -3,6 +3,7 @@ import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { parserRegistry } from "@meetingmind/adapters";
 import { indexUtterancesInQdrant } from "../lib/qdrant.js";
+import { runMeetingAnalysis } from "./analyze.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 export const meetingsRouter = Router();
@@ -76,10 +77,8 @@ meetingsRouter.post("/upload", upload.single("file"), async (req: Request, res: 
       })),
     });
 
-    const fullMeeting = await prisma.meeting.findUnique({
-      where: { id: meeting.id },
-      include: { utterances: { orderBy: { utteranceIndex: "asc" } } },
-    });
+    // Run real-time extraction & zero-hallucination citation validation gate
+    const fullMeeting = await runMeetingAnalysis(meeting.id);
 
     res.status(201).json({ success: true, meeting: fullMeeting });
   } catch (error) {
