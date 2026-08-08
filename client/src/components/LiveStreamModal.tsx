@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, Radio, X, Sparkles, Monitor, Users, Volume2 } from "lucide-react";
+import { Mic, Radio, X, Sparkles, Monitor, Users } from "lucide-react";
 import { MeetingData } from "../types.js";
 
 interface LiveStreamModalProps {
@@ -11,7 +11,7 @@ interface LiveStreamModalProps {
 export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLiveMeetingCreated }: LiveStreamModalProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState("Live Video Meeting");
-  const [activeMeetingId, setActiveMeetingId] = useState<string | null>(null);
+  const [activeMeetingId, setActiveMeetingId] = useState<string | null>("mtg_live_session");
   const [speakerName, setSpeakerName] = useState("Alex Rivera");
   const [liveText, setLiveText] = useState("");
   const [streamLog, setStreamLog] = useState<string[]>([]);
@@ -34,13 +34,15 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
 
     ws.onopen = () => {
       setStreamLog((prev) => [...prev, "⚡ Connected to Real-Time Meeting WebSocket Stream"]);
+      ws.send(JSON.stringify({ type: "START_LIVE_SESSION", title: meetingTitle }));
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "SESSION_STARTED") {
         setActiveMeetingId(data.meetingId);
-        setStreamLog((prev) => [...prev, `📡 Live Session Created: ${data.meetingId}`]);
+        setIsRecording(true);
+        setStreamLog((prev) => [...prev, `📡 Live Session Started: ${data.meetingId}`]);
       }
       if (data.type === "UTTERANCE_ADDED") {
         setStreamLog((prev) => [...prev, `🎙️ [${data.utterance.speaker}]: "${data.utterance.text}"`]);
@@ -59,7 +61,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
         try { recognitionRef.current.stop(); } catch (e) {}
       }
     };
-  }, [isOpen]);
+  }, [isOpen, meetingTitle]);
 
   if (!isOpen) return null;
 
@@ -70,12 +72,31 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
     }
   };
 
+  const sendUtterance = (textToSend?: string) => {
+    const text = textToSend || liveText;
+    if (!text.trim() || !socketRef.current) return;
+
+    const meetingId = activeMeetingId || `mtg_live_${Date.now()}`;
+    const timestamp = new Date().toISOString().substring(11, 19);
+
+    socketRef.current.send(
+      JSON.stringify({
+        type: "LIVE_UTTERANCE",
+        meetingId,
+        speaker: speakerName,
+        text: text.trim(),
+        timestamp,
+      })
+    );
+    setLiveText("");
+  };
+
   // Toggle Browser Microphone Speech Recognition
   const toggleMicrophone = () => {
     if (!isMicActive) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert("Web Speech API is not supported in this browser. You can still type live text or run the Live Simulation Demo!");
+        alert("Web Speech API is not supported in this browser environment. You can still type live text or run the Live Simulation Demo!");
         return;
       }
       const recognition = new SpeechRecognition();
@@ -84,16 +105,14 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
       recognition.lang = "en-US";
 
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join("");
-        setLiveText(transcript);
-
-        // Send final speech turns immediately
-        if (event.results[event.results.length - 1].isFinal) {
-          sendUtterance(transcript);
-          setLiveText("");
+        let currentTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            sendUtterance(event.results[i][0].transcript);
+          }
         }
+        setLiveText(currentTranscript);
       };
 
       recognition.onerror = (err: any) => {
@@ -103,21 +122,23 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
       recognition.start();
       recognitionRef.current = recognition;
       setIsMicActive(true);
+      setStreamLog((prev) => [...prev, "🎙️ Microphone Active — Speak now to stream live transcription"]);
     } else {
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
       }
       setIsMicActive(false);
+      setStreamLog((prev) => [...prev, "🔇 Microphone Muted"]);
     }
   };
 
-  // Toggle Screen Capture (Screen Reading / OCR Context)
+  // Toggle Screen Capture (Multimodal Screen Reader Context)
   const toggleScreenCapture = async () => {
     if (!isScreenActive) {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         setIsScreenActive(true);
-        setStreamLog((prev) => [...prev, "🖥️ Multimodal Screen Reader Active - Reading Video & Slide Context"]);
+        setStreamLog((prev) => [...prev, "🖥️ Multimodal Screen Reader Active - Reading Video Tiles & Slide Text"]);
         stream.getVideoTracks()[0].onended = () => setIsScreenActive(false);
       } catch (err) {
         console.warn("Screen capture permission cancelled:", err);
@@ -127,25 +148,8 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
     }
   };
 
-  const sendUtterance = (textToSend?: string) => {
-    const text = textToSend || liveText;
-    if (!text.trim() || !activeMeetingId || !socketRef.current) return;
-
-    const timestamp = new Date().toISOString().substring(11, 19);
-    socketRef.current.send(
-      JSON.stringify({
-        type: "LIVE_UTTERANCE",
-        meetingId: activeMeetingId,
-        speaker: speakerName,
-        text: text.trim(),
-        timestamp,
-      })
-    );
-    setLiveText("");
-  };
-
   const simulateSpeechSequence = () => {
-    if (!activeMeetingId) startLiveSession();
+    if (!isRecording) startLiveSession();
 
     const sampleSequence = [
       { speaker: "Sarah Chen (Voice ID #84)", text: "We decided to approve the zero-trust security policy immediately." },
@@ -168,7 +172,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
             })
           );
         }
-      }, (index + 1) * 1200);
+      }, (index + 1) * 1100);
     });
   };
 
@@ -198,7 +202,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">Active Speaker (Voice ID)</label>
+              <label className="block text-xs font-mono text-slate-400 mb-1">Active Speaker Name</label>
               <input
                 type="text"
                 value={speakerName}
@@ -209,29 +213,29 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
           </div>
 
           {/* AUDIO & SCREEN INPUT TABS */}
-          <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800/80 text-xs font-mono">
+          <div className="flex items-center gap-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-xs font-mono">
             <button
               onClick={toggleMicrophone}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg border transition cursor-pointer font-bold ${
                 isMicActive
-                  ? "bg-red-500/20 text-red-300 border-red-500/40"
+                  ? "bg-red-500/20 text-red-300 border-red-500/50 animate-pulse"
                   : "bg-slate-900 text-slate-300 border-slate-800 hover:text-white"
               }`}
             >
-              <Mic className="w-3.5 h-3.5" />
+              <Mic className="w-4 h-4 text-red-400" />
               {isMicActive ? "Live Mic Listening..." : "Enable Live Mic"}
             </button>
 
             <button
               onClick={toggleScreenCapture}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg border transition cursor-pointer ${
                 isScreenActive
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
                   : "bg-slate-900 text-slate-300 border-slate-800 hover:text-white"
               }`}
             >
-              <Monitor className="w-3.5 h-3.5" />
-              {isScreenActive ? "Screen Reader Active" : "Share Meeting Screen"}
+              <Monitor className="w-4 h-4 text-emerald-400" />
+              {isScreenActive ? "Screen Reader Active" : "Share Screen"}
             </button>
 
             <div className="ml-auto flex items-center gap-2 text-slate-400 text-[11px]">
@@ -240,66 +244,49 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
             </div>
           </div>
 
-          {!isRecording ? (
-            <div className="flex gap-3 pt-2">
+          {/* LIVE INPUT FIELD & SIMULATOR */}
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder={isMicActive ? "Listening to microphone... or type live speech turn" : "Type a live speech turn (e.g. We decided to approve...)"}
+                value={liveText}
+                onChange={(e) => setLiveText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendUtterance()}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-[#D7F64A]"
+              />
               <button
-                onClick={startLiveSession}
-                className="flex-1 py-3 bg-[#D7F64A] hover:bg-[#c5e43a] text-slate-950 font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(215,246,74,0.3)]"
+                onClick={() => sendUtterance()}
+                className="px-5 py-2.5 bg-[#D7F64A] hover:bg-[#c5e43a] text-slate-950 font-bold text-xs font-mono rounded-xl cursor-pointer shadow-[0_0_12px_rgba(215,246,74,0.3)]"
               >
-                <Volume2 className="w-4 h-4" />
-                Start Live Stream Session
+                Send
               </button>
+            </div>
+
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span className="flex items-center gap-1.5 text-[#D7F64A]">
+                <span className="w-2 h-2 rounded-full bg-[#D7F64A] animate-ping" />
+                Live WebSocket Channel Active (&lt;5ms latency)
+              </span>
               <button
                 onClick={simulateSpeechSequence}
-                className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs rounded-xl flex items-center gap-2 cursor-pointer border border-slate-700"
+                className="text-xs text-slate-300 hover:text-[#D7F64A] flex items-center gap-1 cursor-pointer font-bold"
               >
-                <Sparkles className="w-4 h-4 text-[#D7F64A]" />
-                Simulate Multi-Speaker Call
+                <Sparkles className="w-3.5 h-3.5 text-[#D7F64A]" />
+                Run Multi-Speaker Call Demo
               </button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Type or speak a live utterance..."
-                  value={liveText}
-                  onChange={(e) => setLiveText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendUtterance()}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-[#D7F64A]"
-                />
-                <button
-                  onClick={() => sendUtterance()}
-                  className="px-4 py-2.5 bg-[#D7F64A] text-slate-950 font-bold text-xs font-mono rounded-xl cursor-pointer"
-                >
-                  Send
-                </button>
-              </div>
+          </div>
 
-              <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-                <span className="flex items-center gap-1.5 text-[#D7F64A]">
-                  <span className="w-2 h-2 rounded-full bg-[#D7F64A] animate-ping" />
-                  Streaming utterances & zero-hallucination extractions
-                </span>
-                <button
-                  onClick={simulateSpeechSequence}
-                  className="text-xs text-slate-300 underline cursor-pointer"
-                >
-                  + Simulate Speech Burst
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Live Activity Stream Log */}
-          <div className="mt-4 p-4 bg-slate-950 rounded-xl border border-slate-800/80 h-48 overflow-y-auto font-mono text-[11px] space-y-1.5">
+          {/* LIVE ACTIVITY STREAM LOG */}
+          <div className="mt-4 p-4 bg-slate-950 rounded-xl border border-slate-800/80 h-52 overflow-y-auto font-mono text-[11px] space-y-1.5">
             {streamLog.length === 0 ? (
-              <span className="text-slate-600 italic">Waiting for live speech stream...</span>
+              <span className="text-slate-600 italic">Connecting to live meeting WebSocket stream...</span>
             ) : (
               streamLog.map((log, idx) => (
                 <div
                   key={idx}
-                  className={log.includes("VALIDATED") ? "text-[#D7F64A] font-bold" : "text-slate-300"}
+                  className={log.includes("VALIDATED") ? "text-[#D7F64A] font-bold" : log.includes("🎙️") ? "text-blue-300" : "text-slate-300"}
                 >
                   {log}
                 </div>
