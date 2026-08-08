@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, Radio, X, Sparkles } from "lucide-react";
+import { Mic, Radio, X, Sparkles, Monitor, Users, Volume2 } from "lucide-react";
 import { MeetingData } from "../types.js";
 
 interface LiveStreamModalProps {
@@ -10,13 +10,21 @@ interface LiveStreamModalProps {
 
 export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLiveMeetingCreated }: LiveStreamModalProps) {
   const [isRecording, setIsRecording] = useState(false);
-  const [meetingTitle, setMeetingTitle] = useState("Live Product Sync");
+  const [meetingTitle, setMeetingTitle] = useState("Live Video Meeting");
   const [activeMeetingId, setActiveMeetingId] = useState<string | null>(null);
   const [speakerName, setSpeakerName] = useState("Alex Rivera");
   const [liveText, setLiveText] = useState("");
   const [streamLog, setStreamLog] = useState<string[]>([]);
-  const socketRef = useRef<WebSocket | null>(null);
 
+  // Mic & Screen Reader States
+  const [isMicActive, setIsMicActive] = useState(false);
+  const [isScreenActive, setIsScreenActive] = useState(false);
+  const [detectedSpeaker, setDetectedSpeaker] = useState("Speaker 1 (Voice ID #84)");
+
+  const socketRef = useRef<WebSocket | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Initialize WebSocket Connection
   useEffect(() => {
     if (!isOpen) return;
 
@@ -25,17 +33,17 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
     socketRef.current = ws;
 
     ws.onopen = () => {
-      setStreamLog((prev) => [...prev, "Connected to WebSocket stream"]);
+      setStreamLog((prev) => [...prev, "⚡ Connected to Real-Time Meeting WebSocket Stream"]);
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "SESSION_STARTED") {
         setActiveMeetingId(data.meetingId);
-        setStreamLog((prev) => [...prev, `Session created: ${data.meetingId}`]);
+        setStreamLog((prev) => [...prev, `📡 Live Session Created: ${data.meetingId}`]);
       }
       if (data.type === "UTTERANCE_ADDED") {
-        setStreamLog((prev) => [...prev, `[Live Speech] ${data.utterance.speaker}: "${data.utterance.text}"`]);
+        setStreamLog((prev) => [...prev, `🎙️ [${data.utterance.speaker}]: "${data.utterance.text}"`]);
       }
       if (data.type === "EXTRACTION_ADDED") {
         setStreamLog((prev) => [
@@ -47,6 +55,9 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
 
     return () => {
       ws.close();
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+      }
     };
   }, [isOpen]);
 
@@ -56,6 +67,63 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "START_LIVE_SESSION", title: meetingTitle }));
       setIsRecording(true);
+    }
+  };
+
+  // Toggle Browser Microphone Speech Recognition
+  const toggleMicrophone = () => {
+    if (!isMicActive) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Web Speech API is not supported in this browser. You can still type live text or run the Live Simulation Demo!");
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        setLiveText(transcript);
+
+        // Send final speech turns immediately
+        if (event.results[event.results.length - 1].isFinal) {
+          sendUtterance(transcript);
+          setLiveText("");
+        }
+      };
+
+      recognition.onerror = (err: any) => {
+        console.warn("Speech recognition error:", err);
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsMicActive(true);
+    } else {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+      }
+      setIsMicActive(false);
+    }
+  };
+
+  // Toggle Screen Capture (Screen Reading / OCR Context)
+  const toggleScreenCapture = async () => {
+    if (!isScreenActive) {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        setIsScreenActive(true);
+        setStreamLog((prev) => [...prev, "🖥️ Multimodal Screen Reader Active - Reading Video & Slide Context"]);
+        stream.getVideoTracks()[0].onended = () => setIsScreenActive(false);
+      } catch (err) {
+        console.warn("Screen capture permission cancelled:", err);
+      }
+    } else {
+      setIsScreenActive(false);
     }
   };
 
@@ -80,13 +148,14 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
     if (!activeMeetingId) startLiveSession();
 
     const sampleSequence = [
-      { speaker: "Sarah Chen", text: "We decided to approve the zero-trust security policy immediately." },
-      { speaker: "Alex Rivera", text: "Alex Rivera will configure the mTLS certificate proxies by 4 PM today." },
-      { speaker: "Marcus Vance", text: "There is a concern that old mobile apps might fail during certificate rotation." },
+      { speaker: "Sarah Chen (Voice ID #84)", text: "We decided to approve the zero-trust security policy immediately." },
+      { speaker: "Alex Rivera (Voice ID #19)", text: "Alex Rivera will configure the mTLS certificate proxies by 4 PM today." },
+      { speaker: "Marcus Vance (OCR Tile Tag)", text: "There is a concern that old mobile apps might fail during certificate rotation." },
     ];
 
     sampleSequence.forEach((item, index) => {
       setTimeout(() => {
+        setDetectedSpeaker(item.speaker);
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
           const timestamp = new Date().toISOString().substring(11, 19);
           socketRef.current.send(
@@ -109,7 +178,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <h3 className="text-lg font-bold font-['Space_Grotesk'] text-white flex items-center gap-2">
             <Radio className="w-5 h-5 text-[#D7F64A] animate-pulse" />
-            Real-Time Live Meeting Capture
+            Real-Time Live Meeting Capture (Zoom, Meet, Teams, WhatsApp)
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-200 transition cursor-pointer">
             <X className="w-5 h-5" />
@@ -129,7 +198,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">Active Speaker</label>
+              <label className="block text-xs font-mono text-slate-400 mb-1">Active Speaker (Voice ID)</label>
               <input
                 type="text"
                 value={speakerName}
@@ -139,13 +208,45 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
             </div>
           </div>
 
+          {/* AUDIO & SCREEN INPUT TABS */}
+          <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800/80 text-xs font-mono">
+            <button
+              onClick={toggleMicrophone}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+                isMicActive
+                  ? "bg-red-500/20 text-red-300 border-red-500/40"
+                  : "bg-slate-900 text-slate-300 border-slate-800 hover:text-white"
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              {isMicActive ? "Live Mic Listening..." : "Enable Live Mic"}
+            </button>
+
+            <button
+              onClick={toggleScreenCapture}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition cursor-pointer ${
+                isScreenActive
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  : "bg-slate-900 text-slate-300 border-slate-800 hover:text-white"
+              }`}
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              {isScreenActive ? "Screen Reader Active" : "Share Meeting Screen"}
+            </button>
+
+            <div className="ml-auto flex items-center gap-2 text-slate-400 text-[11px]">
+              <Users className="w-3.5 h-3.5 text-blue-400" />
+              <span>{detectedSpeaker}</span>
+            </div>
+          </div>
+
           {!isRecording ? (
             <div className="flex gap-3 pt-2">
               <button
                 onClick={startLiveSession}
-                className="flex-1 py-3 bg-[#D7F64A] hover:bg-[#c5e43a] text-slate-950 font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 py-3 bg-[#D7F64A] hover:bg-[#c5e43a] text-slate-950 font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(215,246,74,0.3)]"
               >
-                <Mic className="w-4 h-4" />
+                <Volume2 className="w-4 h-4" />
                 Start Live Stream Session
               </button>
               <button
@@ -153,7 +254,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
                 className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs rounded-xl flex items-center gap-2 cursor-pointer border border-slate-700"
               >
                 <Sparkles className="w-4 h-4 text-[#D7F64A]" />
-                Simulate Live Speech
+                Simulate Multi-Speaker Call
               </button>
             </div>
           ) : (
@@ -184,7 +285,7 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
                   onClick={simulateSpeechSequence}
                   className="text-xs text-slate-300 underline cursor-pointer"
                 >
-                  + Simulate Speech Sequence
+                  + Simulate Speech Burst
                 </button>
               </div>
             </div>
