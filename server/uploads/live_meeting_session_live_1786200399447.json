@@ -1,0 +1,16 @@
+{
+  "title": "Live Meeting Session",
+  "date": "2026-08-08T14:46:40.756Z",
+  "duration_seconds": 15,
+  "source_format": "live_stream_capture",
+  "attendees": [
+    "Sarah Chen"
+  ],
+  "transcript": [
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "20:16:40",
+      "text": "We decided to approve the zero-trust security policy immediately."
+    }
+  ]
+}

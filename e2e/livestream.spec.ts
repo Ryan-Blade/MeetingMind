@@ -221,14 +221,14 @@ test.describe.serial("MeetingMind — Live Stream Pipeline", () => {
 
     // Click Live Stream button in header
     await page.getByRole("button", { name: /live stream/i }).click();
-    await expect(page.locator("text=Autonomous Real-Time Meeting Stream")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("text=Real-Time Meeting Transcription")).toBeVisible({ timeout: 5000 });
 
     // WS connection log appears inside the modal log area
-    const logArea = page.locator(".font-mono.space-y-2");
+    const logArea = page.locator(".font-mono.space-y-1\\.5");
     await expect(logArea.getByText(/Connected to Real-Time Meeting WebSocket Stream/)).toBeVisible({ timeout: 10000 });
 
-    // Click the Auto-Detect demo button
-    await page.getByRole("button", { name: /auto-detect call stream/i }).click();
+    // Click the demo button
+    await page.getByRole("button", { name: /run demo transcript/i }).click();
 
     // The demo sends 3 speakers — wait for at least the first to appear in the log
     await expect(logArea.getByText(/Sarah Chen|Alex Rivera|Marcus Vance/).first()).toBeVisible({ timeout: 12000 });

@@ -1,75 +1,60 @@
-export interface SpeakerVoiceProfile {
+/**
+ * Speaker Diarization Service
+ *
+ * What this does:
+ * - Tracks named speakers across a live session by explicit name assignment
+ * - The frontend LiveStreamModal lets users name each speaker slot
+ * - When a speaker name is provided (via rawSpeakerTag), it's used directly
+ *
+ * What this does NOT do (and won't pretend to):
+ * - Automatic voice fingerprinting from raw audio (requires a model like Pyannote or AWS Transcribe)
+ * - Automatic screen OCR of Zoom/Teams tiles (requires a vision API integration)
+ *
+ * For automatic multi-speaker separation, integrate one of:
+ * - Google Cloud Speech-to-Text v2 with speaker_diarization_config
+ * - AWS Transcribe with EnableSpeakerDiarization
+ * - AssemblyAI real-time streaming with speaker_labels
+ * - Pyannote.audio (open-source, self-hosted)
+ */
+
+export interface SpeakerProfile {
   speakerId: string;
-  voiceFingerprintHash: string;
   displayName: string;
-  confidence: number;
+  utteranceCount: number;
 }
 
-export interface ScreenOcrContext {
-  activeScreenTitle?: string;
-  detectedParticipantNames: string[];
-  visibleSlideText?: string;
-}
-
-export class MultimodalDiarizationEngine {
-  private knownSpeakers: Map<string, SpeakerVoiceProfile> = new Map();
+export class SpeakerTracker {
+  private knownSpeakers: Map<string, SpeakerProfile> = new Map();
 
   /**
-   * Process raw audio chunk and identify distinct speaker voice profiles
+   * Register or retrieve a speaker by name.
+   * In live mode, speakerName comes directly from the user's speaker slot selection in the UI.
    */
-  public identifySpeakerFromAudio(
-    audioChunkBuffer?: Buffer,
-    rawSpeakerTag?: string
-  ): { speakerLabel: string; voiceId: string; confidence: number } {
-    if (rawSpeakerTag && rawSpeakerTag !== "Speaker") {
-      return {
-        speakerLabel: rawSpeakerTag,
-        voiceId: `voice_${rawSpeakerTag.replace(/\s+/g, "_").toLowerCase()}`,
-        confidence: 0.95,
-      };
-    }
+  public trackSpeaker(speakerName: string): SpeakerProfile {
+    const key = speakerName.trim().toLowerCase();
 
-    // Generate acoustic voice fingerprint hash from audio buffer
-    const hash = audioChunkBuffer
-      ? `voice_hash_${audioChunkBuffer.length % 99}`
-      : `voice_id_${Math.floor(Math.random() * 5) + 1}`;
-
-    if (!this.knownSpeakers.has(hash)) {
-      const idNumber = this.knownSpeakers.size + 1;
-      this.knownSpeakers.set(hash, {
-        speakerId: `Speaker ${idNumber}`,
-        voiceFingerprintHash: hash,
-        displayName: `Speaker ${idNumber}`,
-        confidence: 0.92,
+    if (!this.knownSpeakers.has(key)) {
+      this.knownSpeakers.set(key, {
+        speakerId: `spk_${key.replace(/\s+/g, "_")}`,
+        displayName: speakerName.trim(),
+        utteranceCount: 0,
       });
     }
 
-    const profile = this.knownSpeakers.get(hash)!;
-    return {
-      speakerLabel: profile.displayName,
-      voiceId: profile.voiceFingerprintHash,
-      confidence: profile.confidence,
-    };
+    const profile = this.knownSpeakers.get(key)!;
+    profile.utteranceCount += 1;
+    return profile;
   }
 
-  /**
-   * Reads video screen frames (from Zoom / Teams / WhatsApp / Skype / Meet)
-   * to fuse OCR participant names with voice IDs
-   */
-  public fuseScreenOcrWithVoiceId(
-    voiceSpeakerLabel: string,
-    ocrContext: ScreenOcrContext
-  ): string {
-    if (
-      ocrContext.detectedParticipantNames &&
-      ocrContext.detectedParticipantNames.length > 0
-    ) {
-      // Return matched OCR participant name tag
-      const matchedName = ocrContext.detectedParticipantNames[0];
-      return `${matchedName} (${voiceSpeakerLabel})`;
-    }
-    return voiceSpeakerLabel;
+  /** Return all speakers seen in this session */
+  public getAllSpeakers(): SpeakerProfile[] {
+    return Array.from(this.knownSpeakers.values());
+  }
+
+  /** Reset for a new session */
+  public reset(): void {
+    this.knownSpeakers.clear();
   }
 }
 
-export const diarizationEngine = new MultimodalDiarizationEngine();
+export const speakerTracker = new SpeakerTracker();

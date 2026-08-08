@@ -1,0 +1,16 @@
+{
+  "title": "Automated Live Meeting Session",
+  "date": "2026-08-08T14:28:36.981Z",
+  "duration_seconds": 15,
+  "source_format": "live_stream_capture",
+  "attendees": [
+    "Sarah Chen (Zoom Video Tile OCR)"
+  ],
+  "transcript": [
+    {
+      "speaker": "Sarah Chen (Zoom Video Tile OCR)",
+      "start_time": "14:28:36",
+      "text": "We decided to approve the zero-trust security policy immediately."
+    }
+  ]
+}

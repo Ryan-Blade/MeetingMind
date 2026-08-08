@@ -1,0 +1,53 @@
+{
+  "title": "YouTube Group Meeting Sprint Planning Q3",
+  "date": "2026-08-08T14:28:34.083Z",
+  "duration_seconds": 120,
+  "source_format": "live_stream_capture",
+  "attendees": [
+    "Sarah Chen",
+    "Alex Rivera",
+    "Marcus Vance"
+  ],
+  "transcript": [
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "00:00:15",
+      "text": "Alright everyone, let's kick off the Q3 sprint planning. We've decided to prioritize the new authentication system over the analytics dashboard this quarter."
+    },
+    {
+      "speaker": "Alex Rivera",
+      "start_time": "00:00:42",
+      "text": "Alex Rivera will take ownership of the OAuth 2.0 integration and have it ready for code review by Friday end of day."
+    },
+    {
+      "speaker": "Marcus Vance",
+      "start_time": "00:01:10",
+      "text": "I'm concerned about the timeline. The current database schema doesn't support multi-tenant auth tokens — that could be a serious blocker for the Friday deadline."
+    },
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "00:01:38",
+      "text": "We need to decide right now — do we roll back the v2.4 release or patch the database schema in place? I strongly recommend we roll back."
+    },
+    {
+      "speaker": "Alex Rivera",
+      "start_time": "00:02:05",
+      "text": "I disagree with the rollback approach. Rolling back v2.4 would take at least 3 hours of downtime. We should apply the missing index migration and patch in place instead."
+    },
+    {
+      "speaker": "Marcus Vance",
+      "start_time": "00:02:33",
+      "text": "Marcus Vance will run the full load test suite against the staging environment and report results before 4 PM today to help us make this decision."
+    },
+    {
+      "speaker": "Sarah Chen",
+      "start_time": "00:03:01",
+      "text": "After reviewing Marcus's load test results, we decided to apply the targeted index patch without rolling back v2.4. That's our final decision."
+    },
+    {
+      "speaker": "Alex Rivera",
+      "start_time": "00:03:28",
+      "text": "There's also a dependency risk — the mobile team's SDK version 3.1 is not compatible with the new mTLS certificate rotation we are planning. That needs to be resolved first."
+    }
+  ]
+}

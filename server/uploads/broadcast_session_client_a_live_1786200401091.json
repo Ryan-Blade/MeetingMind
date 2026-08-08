@@ -1,0 +1,16 @@
+{
+  "title": "Broadcast Session Client A",
+  "date": "2026-08-08T14:46:41.412Z",
+  "duration_seconds": 15,
+  "source_format": "live_stream_capture",
+  "attendees": [
+    "Client A"
+  ],
+  "transcript": [
+    {
+      "speaker": "Client A",
+      "start_time": "00:00:01",
+      "text": "This is the broadcast-marker-1786200401097 message."
+    }
+  ]
+}
