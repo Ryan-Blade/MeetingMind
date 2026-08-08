@@ -33,9 +33,8 @@ export function FloatingHudOverlay({ isOpen, onClose, onExpandToFullRoom }: Floa
     initialY: 0,
   });
 
-  // Audio Diarization & Screen Capture States
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [speakerCount, setSpeakerCount] = useState(2);
+  const [speakerSet, setSpeakerSet] = useState<Set<string>>(new Set(["Speaker 1"]));
   const [liveUtterance, setLiveUtterance] = useState<{ speaker: string; text: string; timestamp: string } | null>(null);
 
   const [liveDecisions, setLiveDecisions] = useState<Decision[]>([]);
@@ -97,6 +96,7 @@ export function FloatingHudOverlay({ isOpen, onClose, onExpandToFullRoom }: Floa
           text: data.utterance.text,
           timestamp: data.utterance.timestamp,
         });
+        setSpeakerSet((prev) => new Set([...prev, data.utterance.speaker]));
       }
       if (data.type === "EXTRACTION_ADDED") {
         if (data.cardType === "DECISION") setLiveDecisions((prev) => [data.card, ...prev]);
@@ -136,7 +136,7 @@ export function FloatingHudOverlay({ isOpen, onClose, onExpandToFullRoom }: Floa
         { speaker: "Speaker 2 (Voice ID #19)", text: "Alex Rivera will configure the mTLS certificate proxies by 4 PM today." },
         { speaker: "Speaker 3 (OCR Screen Tag)", text: "There is a concern that old mobile apps might fail during certificate rotation." },
       ];
-      setSpeakerCount(3);
+      setSpeakerSet(new Set(samples.map((s) => s.speaker)));
       samples.forEach((s, idx) => {
         setTimeout(() => {
           ws.send(
@@ -235,7 +235,7 @@ export function FloatingHudOverlay({ isOpen, onClose, onExpandToFullRoom }: Floa
 
           <div className="flex items-center space-x-2">
             <Users className="w-3.5 h-3.5 text-blue-400" />
-            <span>Voice ID ({speakerCount} Speakers)</span>
+            <span>Voice ID ({speakerSet.size} Dynamic Speakers)</span>
           </div>
 
           <button
