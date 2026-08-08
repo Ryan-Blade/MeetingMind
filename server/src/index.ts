@@ -1,8 +1,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { createServer } from "node:http";
 import { meetingsRouter } from "./routes/meetings.js";
 import { analyzeRouter } from "./routes/analyze.js";
+import { initLiveSocketServer } from "./services/live-socket.js";
 
 dotenv.config();
 
@@ -19,9 +21,13 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+const server = createServer(app);
+initLiveSocketServer(server);
+
 if (process.env.NODE_ENV !== "test") {
-  app.listen(port, () => {
+  server.listen(port, () => {
     console.log(`MeetingMind Server running on http://localhost:${port}`);
+    console.log(`Live WebSocket stream listening on ws://localhost:${port}/ws/live-meeting`);
   });
 }
 
