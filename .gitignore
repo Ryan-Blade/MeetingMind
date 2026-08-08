@@ -6,3 +6,5 @@ dist
 coverage
 client/dist
 server/dist
+demo_recordings/
+*.webm
