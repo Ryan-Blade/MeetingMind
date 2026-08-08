@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-import dotenv from "dotenv";
 import {
   decisionExtractorTool,
   actionItemExtractorTool,
@@ -10,14 +8,7 @@ import {
   RiskExtraction,
   DisagreementExtraction,
 } from "../../agents/schemas.js";
-
-dotenv.config();
-
-const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-const anthropic =
-  anthropicApiKey && anthropicApiKey !== "your-anthropic-api-key"
-    ? new Anthropic({ apiKey: anthropicApiKey })
-    : null;
+import { llmProviderManager } from "../lib/llm-provider.js";
 
 export async function extractDecisionsForUtterance(
   utteranceText: string,
@@ -25,38 +16,23 @@ export async function extractDecisionsForUtterance(
   speaker: string,
   timestamp: string
 ): Promise<DecisionExtraction[]> {
-  if (anthropic) {
-    try {
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000,
-        tools: [decisionExtractorTool as any],
-        tool_choice: { type: "tool", name: "extract_decisions" },
-        messages: [
-          {
-            role: "user",
-            content: `Speaker: "${speaker}" (${timestamp})\nUtterance ID: ${utteranceId}\nText: "${utteranceText}"`,
-          },
-        ],
-      });
+  const result = await llmProviderManager.executeToolCall({
+    userPrompt: `Speaker: "${speaker}" (${timestamp})\nUtterance ID: ${utteranceId}\nText: "${utteranceText}"`,
+    toolName: decisionExtractorTool.name,
+    toolDescription: decisionExtractorTool.description,
+    inputSchema: decisionExtractorTool.input_schema,
+  });
 
-      const toolUseBlock = response.content.find((b) => b.type === "tool_use");
-      if (toolUseBlock && toolUseBlock.type === "tool_use") {
-        const input = toolUseBlock.input as { decisions: any[] };
-        return (input.decisions || []).map((d) => ({
-          ...d,
-          speaker: d.speaker || speaker,
-          timestamp: d.timestamp || timestamp,
-          source_utterance_id: utteranceId,
-        }));
-      }
-      return [];
-    } catch (err) {
-      console.warn("Anthropic API error, falling back to mock rule extractor:", err);
-    }
+  if (result && Array.isArray(result.decisions)) {
+    return result.decisions.map((d: any) => ({
+      ...d,
+      speaker: d.speaker || speaker,
+      timestamp: d.timestamp || timestamp,
+      source_utterance_id: utteranceId,
+    }));
   }
 
-  // Fallback rule extraction for offline / fixture test mode
+  // Fallback rule extraction for offline / fixture test mode when no API keys are set
   if (/decided to|agreed to|decision/i.test(utteranceText)) {
     return [
       {
@@ -78,38 +54,23 @@ export async function extractActionItemsForUtterance(
   speaker: string,
   timestamp: string
 ): Promise<ActionItemExtraction[]> {
-  if (anthropic) {
-    try {
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000,
-        tools: [actionItemExtractorTool as any],
-        tool_choice: { type: "tool", name: "extract_action_items" },
-        messages: [
-          {
-            role: "user",
-            content: `Speaker: "${speaker}" (${timestamp})\nUtterance ID: ${utteranceId}\nText: "${utteranceText}"`,
-          },
-        ],
-      });
+  const result = await llmProviderManager.executeToolCall({
+    userPrompt: `Speaker: "${speaker}" (${timestamp})\nUtterance ID: ${utteranceId}\nText: "${utteranceText}"`,
+    toolName: actionItemExtractorTool.name,
+    toolDescription: actionItemExtractorTool.description,
+    inputSchema: actionItemExtractorTool.input_schema,
+  });
 
-      const toolUseBlock = response.content.find((b) => b.type === "tool_use");
-      if (toolUseBlock && toolUseBlock.type === "tool_use") {
-        const input = toolUseBlock.input as { action_items: any[] };
-        return (input.action_items || []).map((a) => ({
-          ...a,
-          speaker: a.speaker || speaker,
-          timestamp: a.timestamp || timestamp,
-          source_utterance_id: utteranceId,
-        }));
-      }
-      return [];
-    } catch (err) {
-      console.warn("Anthropic API error, falling back to mock rule extractor:", err);
-    }
+  if (result && Array.isArray(result.action_items)) {
+    return result.action_items.map((a: any) => ({
+      ...a,
+      speaker: a.speaker || speaker,
+      timestamp: a.timestamp || timestamp,
+      source_utterance_id: utteranceId,
+    }));
   }
 
-  // Fallback rule extraction for offline / fixture test mode
+  // Fallback rule extraction for offline / fixture test mode when no API keys are set
   if (/will run|will deploy|action item|tasked to/i.test(utteranceText)) {
     return [
       {
@@ -134,38 +95,23 @@ export async function extractRisksForUtterance(
   speaker: string,
   timestamp: string
 ): Promise<RiskExtraction[]> {
-  if (anthropic) {
-    try {
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000,
-        tools: [riskExtractorTool as any],
-        tool_choice: { type: "tool", name: "extract_risks" },
-        messages: [
-          {
-            role: "user",
-            content: `Speaker: "${speaker}" (${timestamp})\nUtterance ID: ${utteranceId}\nText: "${utteranceText}"`,
-          },
-        ],
-      });
+  const result = await llmProviderManager.executeToolCall({
+    userPrompt: `Speaker: "${speaker}" (${timestamp})\nUtterance ID: ${utteranceId}\nText: "${utteranceText}"`,
+    toolName: riskExtractorTool.name,
+    toolDescription: riskExtractorTool.description,
+    inputSchema: riskExtractorTool.input_schema,
+  });
 
-      const toolUseBlock = response.content.find((b) => b.type === "tool_use");
-      if (toolUseBlock && toolUseBlock.type === "tool_use") {
-        const input = toolUseBlock.input as { risks: any[] };
-        return (input.risks || []).map((r) => ({
-          ...r,
-          speaker: r.speaker || speaker,
-          timestamp: r.timestamp || timestamp,
-          source_utterance_id: utteranceId,
-        }));
-      }
-      return [];
-    } catch (err) {
-      console.warn("Anthropic API error, falling back to mock rule extractor:", err);
-    }
+  if (result && Array.isArray(result.risks)) {
+    return result.risks.map((r: any) => ({
+      ...r,
+      speaker: r.speaker || speaker,
+      timestamp: r.timestamp || timestamp,
+      source_utterance_id: utteranceId,
+    }));
   }
 
-  // Fallback rule extraction for offline / fixture test mode
+  // Fallback rule extraction for offline / fixture test mode when no API keys are set
   if (/risk|concern|blocker|lock/i.test(utteranceText)) {
     return [
       {
@@ -187,49 +133,32 @@ export async function extractDisagreementForPair(
   u1: { text: string; utteranceId: string; speaker: string; timestamp: string },
   u2: { text: string; utteranceId: string; speaker: string; timestamp: string }
 ): Promise<DisagreementExtraction | null> {
-  if (anthropic) {
-    try {
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000,
-        tools: [disagreementExtractorTool as any],
-        tool_choice: { type: "tool", name: "extract_disagreement" },
-        messages: [
-          {
-            role: "user",
-            content: `Utterance 1 (${u1.speaker}, ${u1.timestamp}): "${u1.text}"\nUtterance 2 (${u2.speaker}, ${u2.timestamp}): "${u2.text}"`,
-          },
-        ],
-      });
+  const result = await llmProviderManager.executeToolCall({
+    userPrompt: `Utterance 1 (${u1.speaker}, ${u1.timestamp}): "${u1.text}"\nUtterance 2 (${u2.speaker}, ${u2.timestamp}): "${u2.text}"`,
+    toolName: disagreementExtractorTool.name,
+    toolDescription: disagreementExtractorTool.description,
+    inputSchema: disagreementExtractorTool.input_schema,
+  });
 
-      const toolUseBlock = response.content.find((b) => b.type === "tool_use");
-      if (toolUseBlock && toolUseBlock.type === "tool_use") {
-        const input = toolUseBlock.input as any;
-        if (input.found) {
-          return {
-            topic: input.topic || "Discussion Topic",
-            position_1: input.position_1 || u1.text,
-            speaker_1: u1.speaker,
-            timestamp_1: u1.timestamp,
-            exact_quote_1: input.exact_quote_1 || u1.text,
-            position_2: input.position_2 || u2.text,
-            speaker_2: u2.speaker,
-            timestamp_2: u2.timestamp,
-            exact_quote_2: input.exact_quote_2 || u2.text,
-            resolution: input.resolution || null,
-            confidence: input.confidence || 0.85,
-            source_utterance_id_1: u1.utteranceId,
-            source_utterance_id_2: u2.utteranceId,
-          };
-        }
-      }
-      return null;
-    } catch (err) {
-      console.warn("Anthropic API error, falling back to mock pair extractor:", err);
-    }
+  if (result && result.found) {
+    return {
+      topic: result.topic || "Discussion Topic",
+      position_1: result.position_1 || u1.text,
+      speaker_1: u1.speaker,
+      timestamp_1: u1.timestamp,
+      exact_quote_1: result.exact_quote_1 || u1.text,
+      position_2: result.position_2 || u2.text,
+      speaker_2: u2.speaker,
+      timestamp_2: u2.timestamp,
+      exact_quote_2: result.exact_quote_2 || u2.text,
+      resolution: result.resolution || null,
+      confidence: result.confidence || 0.85,
+      source_utterance_id_1: u1.utteranceId,
+      source_utterance_id_2: u2.utteranceId,
+    };
   }
 
-  // Fallback rule pair windowing extraction for test / fixture mode
+  // Fallback rule pair windowing extraction for offline / fixture test mode when no API keys are set
   if (
     (u1.text.includes("roll back") || u2.text.includes("roll back")) &&
     (u1.text.includes("disagree") || u2.text.includes("disagree"))
