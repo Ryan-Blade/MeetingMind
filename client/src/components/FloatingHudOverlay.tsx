@@ -82,7 +82,8 @@ export function FloatingHudOverlay({ isOpen, onClose, onExpandToFullRoom }: Floa
   useEffect(() => {
     if (!isOpen) return;
 
-    const ws = new WebSocket("ws://localhost:3001/ws/live-meeting");
+    const host = window.location.hostname || "localhost";
+    const ws = new WebSocket(`ws://${host}:3001/ws/live-meeting`);
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "START_LIVE_SESSION", title: "Universal Call Live Overlay" }));
@@ -127,7 +128,8 @@ export function FloatingHudOverlay({ isOpen, onClose, onExpandToFullRoom }: Floa
   };
 
   const simulateSpeechBurst = () => {
-    const ws = new WebSocket("ws://localhost:3001/ws/live-meeting");
+    const host = window.location.hostname || "localhost";
+    const ws = new WebSocket(`ws://${host}:3001/ws/live-meeting`);
     ws.onopen = () => {
       const samples = [
         { speaker: "Speaker 1 (Voice ID #84)", text: "We decided to approve the zero-trust security policy immediately." },

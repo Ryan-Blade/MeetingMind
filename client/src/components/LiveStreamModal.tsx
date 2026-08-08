@@ -20,7 +20,8 @@ export function LiveStreamModal({ isOpen, onClose, onLiveMeetingCreated: _onLive
   useEffect(() => {
     if (!isOpen) return;
 
-    const ws = new WebSocket("ws://localhost:3001/ws/live-meeting");
+    const host = window.location.hostname || "localhost";
+    const ws = new WebSocket(`ws://${host}:3001/ws/live-meeting`);
     socketRef.current = ws;
 
     ws.onopen = () => {

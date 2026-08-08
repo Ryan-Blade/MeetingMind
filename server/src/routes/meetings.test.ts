@@ -49,9 +49,10 @@ describe("Meetings Ingestion Route API", () => {
       updatedAt: new Date(),
     });
 
-    vi.spyOn(prisma.meeting, "update").mockImplementation(async (args: any): Promise<any> => {
-      return { id: args.where.id, status: args.data.status } as any;
-    });
+    vi.spyOn(prisma.meeting, "update").mockResolvedValue({
+      id: "mtg_mock_789",
+      status: "ANALYZED",
+    } as any);
 
     (vi.spyOn(prisma, "$transaction") as any).mockResolvedValue([]);
     vi.spyOn(prisma.utterance, "createMany").mockResolvedValue({ count: 2 });

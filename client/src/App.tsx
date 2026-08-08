@@ -27,30 +27,68 @@ export default function App() {
   // Global WebSocket Listener for Real-Time Live Sync
   useEffect(() => {
     let ws: WebSocket | null = null;
-    try {
-      ws = new WebSocket("ws://localhost:3001/ws/live-meeting");
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "UTTERANCE_ADDED") {
-          setMeeting((prev) => ({
-            ...prev,
-            utterances: [...prev.utterances, data.utterance],
-          }));
-        }
-        if (data.type === "EXTRACTION_ADDED") {
-          setMeeting((prev) => {
-            if (data.cardType === "DECISION") return { ...prev, decisions: [data.card, ...prev.decisions] };
-            if (data.cardType === "ACTION_ITEM") return { ...prev, actionItems: [data.card, ...prev.actionItems] };
-            if (data.cardType === "RISK") return { ...prev, risks: [data.card, ...prev.risks] };
-            if (data.cardType === "DISAGREEMENT") return { ...prev, disagreements: [data.card, ...prev.disagreements] };
-            return prev;
-          });
-        }
-      };
-    } catch (err) {
-      console.warn("WebSocket connection error:", err);
-    }
+    let reconnectTimeout: any = null;
+
+    const connectWebSocket = () => {
+      try {
+        const host = window.location.hostname || "localhost";
+        ws = new WebSocket(`ws://${host}:3001/ws/live-meeting`);
+
+        ws.onopen = () => {
+          console.log("[App WebSocket] Connected to real-time meeting stream");
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === "UTTERANCE_ADDED") {
+            setMeeting((prev) => {
+              const exists = prev.utterances.some((u) => u.utteranceId === data.utterance.utteranceId);
+              if (exists) return prev;
+              return {
+                ...prev,
+                utterances: [...prev.utterances, data.utterance],
+              };
+            });
+          }
+          if (data.type === "EXTRACTION_ADDED") {
+            setMeeting((prev) => {
+              if (data.cardType === "DECISION") {
+                const exists = prev.decisions.some((d) => d.id === data.card.id);
+                if (exists) return prev;
+                return { ...prev, decisions: [data.card, ...prev.decisions] };
+              }
+              if (data.cardType === "ACTION_ITEM") {
+                const exists = prev.actionItems.some((a) => a.id === data.card.id);
+                if (exists) return prev;
+                return { ...prev, actionItems: [data.card, ...prev.actionItems] };
+              }
+              if (data.cardType === "RISK") {
+                const exists = prev.risks.some((r) => r.id === data.card.id);
+                if (exists) return prev;
+                return { ...prev, risks: [data.card, ...prev.risks] };
+              }
+              if (data.cardType === "DISAGREEMENT") {
+                const exists = prev.disagreements.some((dg) => dg.id === data.card.id);
+                if (exists) return prev;
+                return { ...prev, disagreements: [data.card, ...prev.disagreements] };
+              }
+              return prev;
+            });
+          }
+        };
+
+        ws.onclose = () => {
+          reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        };
+      } catch (err) {
+        console.warn("[App WebSocket] Connection error:", err);
+      }
+    };
+
+    connectWebSocket();
+
     return () => {
+      clearTimeout(reconnectTimeout);
       ws?.close();
     };
   }, []);
