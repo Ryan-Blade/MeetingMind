@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=@meetingmind/server\" \"npm run dev --workspace=@meetingmind/client\"",
+    "start": "npm run build && npm run start --workspace=@meetingmind/server",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",

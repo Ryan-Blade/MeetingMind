@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
 import { createServer } from "node:http";
 import { meetingsRouter } from "./routes/meetings.js";
 import { analyzeRouter } from "./routes/analyze.js";
 import { initLiveSocketServer } from "./services/live-socket.js";
-
-import path from "node:path";
 
 dotenv.config();
 
@@ -23,6 +23,15 @@ app.use("/api/meetings", analyzeRouter);
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+// Single-Port Deployment: Serve static React production bundle if built
+const clientDistPath = path.resolve(process.cwd(), "../client/dist");
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(clientDistPath, "index.html"));
+  });
+}
 
 const server = createServer(app);
 initLiveSocketServer(server);
